@@ -1,5 +1,31 @@
 # electric-table-alternative-lego-keyboard
 
+======= INSTALACJA =========
+
+# katalog electric-table-alternative-lego-keyboard powinien znajdować się w /home/pi
+
+cd /home/pi/electric-table-alternative-lego-keyboard
+chmod +x init.d/electric-table.sh
+sudo cp init.d/electric-table.sh /etc/init.d/electric-table
+sudo update-rc.d electric-table defaults
+
+# za pierwszym razem trzeba jeszcze zrobić:
+sudo /etc/init.d/electric-table start
+sudo /etc/init.d/electric-table stop
+
+# i potem można już robić:
+sudo service electric-table start
+oraz
+sudo service electric-table stop
+
+# w razie czego, deinstalacja:
+sudo update-rc.d electric-table remove
+
+# logi znajdują się w:
+# /var/log/electric-table.log
+
+====== KABELKI ========
+
 rpi gpio no:	co:
 -----------------------------------------------------------------------------------------------
 0-4				sterowanie przyciskami fabrycznymi (rpi -> switch board -> przyciski fabryczne)
@@ -22,6 +48,8 @@ pin no		rpi func    kolor kabelka		s.b. in		s.b. out	kostki		fabr. przyc.	przyc.
 5			gpio 9		zielony										15							2				k.3. zielony
 24			gpio 10		żółty										16							3				k.3. czerwony
 9			Ground		czarny										17							GND				k.3. niebieski
+26			gpio 11		fioletowy			IN6			przek. 6
+19			gpio 12		szary				IN7			przek. 7
 ---------------------------
 rpi = raspberry pi
 s.b. = [relay] switch board

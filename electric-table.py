@@ -18,6 +18,8 @@ gpio7		= 7
 gpio8		= 3
 gpio9		= 5
 gpio10		= 24
+gpio11		= 26
+gpio12		= 19
 
 # fabryczne przyciski w stole, które będziemy "nasiskać"
 factory_button_up = gpio0
@@ -34,6 +36,10 @@ lego_button_1 = gpio8
 lego_button_2 = gpio9
 lego_button_3 = gpio10
 
+# 2 przekaźniki będą slużyły jako powiadomienie o uruchomieniu serwisu -> gotowości stołu do działania
+notification_relay_switch_1 = gpio11
+notification_relay_switch_2 = gpio12
+
 gpio.setmode(gpio.BOARD)
 
 gpio.setup(factory_button_up, gpio.OUT)
@@ -48,6 +54,9 @@ gpio.setup(lego_button_stop, gpio.IN, pull_up_down = gpio.PUD_UP)
 gpio.setup(lego_button_1, gpio.IN, pull_up_down = gpio.PUD_UP)
 gpio.setup(lego_button_2, gpio.IN, pull_up_down = gpio.PUD_UP)
 gpio.setup(lego_button_3, gpio.IN, pull_up_down = gpio.PUD_UP)
+
+gpio.setup(notification_relay_switch_1, gpio.OUT)
+gpio.setup(notification_relay_switch_2, gpio.OUT)
 
 max_ride_time = 18				# ile czasu zajmuje przejechanie stołowi z samej góry na doł lub odwrotnie (~17), plus jeszcze sekunda (+1)
 sleep_interval = 0.1
@@ -72,6 +81,7 @@ def press_factory_button(factory_button_pin_no):
 
 def do_log(text):
 	print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + ": " + text)
+	sys.stdout.flush()
 
 def log_lego_button_pressed(action):
 	do_log("lego button pressed, action = " + action)
@@ -85,7 +95,23 @@ def log_factory_button_press_emulated(action):
 def log_action_timeout(action):
 	do_log("action timeout, action = " + action)
 
+def let_the_fanfare_sound():
+	gpio.output(notification_relay_switch_1, press_button)
+	time.sleep(0.15)
+	gpio.output(notification_relay_switch_2, press_button)
+	time.sleep(0.15)
+	gpio.output(notification_relay_switch_1, unpress_button)
+	time.sleep(0.15)
+	gpio.output(notification_relay_switch_2, unpress_button)
+	gpio.output(notification_relay_switch_1, press_button)
+	time.sleep(0.15)
+	gpio.output(notification_relay_switch_1, unpress_button)
+
+do_log("====== Hi! ======")
+
 zero_factory_buttons()
+
+let_the_fanfare_sound()
 
 # jezeli nacisniemy przycisk lego up|down|1|2|3 to akcja
 # jezeli nacisniemy przycisk lego up|down|1|2|3 w trakcie gdy trwa inna akcja odpowiadajaca przyciskowi z tego zbioru, to nowa akcja
