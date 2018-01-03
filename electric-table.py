@@ -59,10 +59,17 @@ gpio.setup(notification_relay_switch_1, gpio.OUT)
 gpio.setup(notification_relay_switch_2, gpio.OUT)
 
 max_ride_time = 18				# ile czasu zajmuje przejechanie stołowi z samej góry na doł lub odwrotnie (~17), plus jeszcze sekunda (+1)
-sleep_interval = 0.1
+default_sleep_interval = 0.1
+sleep_interval = default_sleep_interval
+shortened_sleep_interval = 0.05
 current_action_duration = 0		# ile czasu trwa obecna akcja (inicjowana przyciskiem lego; akcja = "naciśnięcie" przycisku fabrycznego)
 current_action = ""
 prev_action = ""
+tick_count = 0
+max_tick_count = 1000000
+press_tick = 0
+just_pressed_action = ""
+at_least_two_ticks = False
 
 press_button = False			# stan niski na gpio -> wejscie relay switch board: powoduje włączenie przekaźnika
 unpress_button = True			# analogicznie jak wyżej: wyłączenie przekaźnika
@@ -83,8 +90,8 @@ def do_log(text):
 	print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + ": " + text)
 	sys.stdout.flush()
 
-def log_lego_button_pressed(action):
-	do_log("lego button pressed, action = " + action)
+def log_lego_button_pressed(action, tick):
+	do_log("lego button pressed, action = " + action + ", tick = " + str(tick))
 
 def log_factory_buttons_zeroed():
 	do_log("factory buttons zeroed")
@@ -120,33 +127,37 @@ let_the_fanfare_sound()
 # jezeli akcja trwa max_ride_time sekund, to konczymy akcje
 while True:
 	if not gpio.input(lego_button_up):
-		prev_action = current_action
-		current_action = "up"
-		log_lego_button_pressed(current_action)
+		just_pressed_action = "up"
 	elif not gpio.input(lego_button_down):
-		prev_action = current_action
-		current_action = "down"
-		log_lego_button_pressed(current_action)
+		just_pressed_action = "down"
 	elif not gpio.input(lego_button_stop):
-		prev_action = current_action
-		current_action = "stop"
-		log_lego_button_pressed(current_action)
+		just_pressed_action = "stop"
 	elif not gpio.input(lego_button_1):
-		prev_action = current_action
-		current_action = "1"
-		log_lego_button_pressed(current_action)
+		just_pressed_action = "1"
 	elif not gpio.input(lego_button_2):
-		prev_action = current_action
-		current_action = "2"
-		log_lego_button_pressed(current_action)
+		just_pressed_action = "2"
 	elif not gpio.input(lego_button_3):
-		prev_action = current_action
-		current_action = "3"
-		log_lego_button_pressed(current_action)
+		just_pressed_action = "3"
 		
-	if current_action != "" and current_action != prev_action:
+	if just_pressed_action != "":
+		log_lego_button_pressed(just_pressed_action, tick_count)
+		if prev_action == just_pressed_action and tick_count - press_tick == 1:
+			# 2018-01-03 by wiele: musiałem wprowadzić sprawdzenie czy przycisk jest naciśnięty przez 2 obiegi pętly pod rząd z powodu samoistnych
+			# randomowych "naciśnięć"; więcej tutaj: https://raspberrypi.stackexchange.com/questions/69820/doorbell-gpio-to-ground-randomly-triggers
+			prev_action = ""
+			current_action = just_pressed_action
+			at_least_two_ticks = True
+		else:
+			press_tick = tick_count
+			prev_action = just_pressed_action
+			just_pressed_action = ""
+			# skracamy czas do następnego obiegu pętli, żeby krócej trzeba było przytrzymywać przycisk
+			sleep_interval = shortened_sleep_interval
+		
+	if current_action != "" and current_action != prev_action and at_least_two_ticks:
 		prev_action = current_action
 		current_action_duration = 0
+		at_least_two_ticks = False
 		zero_factory_buttons()
 		if current_action == "stop":
 			pass
@@ -171,4 +182,10 @@ while True:
 			zero_factory_buttons()
 		
 	time.sleep(sleep_interval)
+	# jeżeli sleep_interval został [tymczasowo] zmieniony, to powracamy do starego
+	if sleep_interval != default_sleep_interval:
+		sleep_interval = default_sleep_interval
 	
+	tick_count += 1
+	if tick_count == max_tick_count:
+		tick_count = 0
